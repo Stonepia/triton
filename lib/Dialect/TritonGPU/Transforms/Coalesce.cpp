@@ -16,7 +16,11 @@ struct CoalescePass : public TritonGPUCoalesceBase<CoalescePass> {
     auto origType = ptr.getType().cast<RankedTensorType>();
     // Get the shape of the tensor.
     size_t rank = origType.getRank();
-    AxisInfo info = axisInfo.lookupLatticeElement(ptr)->getValue();
+    dataflow::Lattice<AxisInfo> *latticeElement =
+        axisInfo.getLatticeElement(ptr);
+    AxisInfo info = latticeElement && !latticeElement->isUninitialized()
+                        ? latticeElement->getValue()
+                        : AxisInfo();
     // Layout order in decreasing order of contiguity
     SmallVector<unsigned, 4> order(rank);
     std::iota(order.begin(), order.end(), 0);
@@ -69,7 +73,6 @@ struct CoalescePass : public TritonGPUCoalesceBase<CoalescePass> {
     auto mod = op->getParentOfType<ModuleOp>();
     int numWarps = triton::gpu::TritonGPUDialect::getNumWarps(mod);
 
-    AxisInfo info = axisInfo.lookupLatticeElement(ptr)->getValue();
     auto convertType = getTypeConverter(axisInfo, ptr, numWarps);
     // convert operands
     SmallVector<Value, 4> newArgs;
@@ -105,8 +108,10 @@ struct CoalescePass : public TritonGPUCoalesceBase<CoalescePass> {
   void runOnOperation() override {
     Operation *op = getOperation();
     // Run axis info analysis
-    AxisInfoAnalysis axisInfo(&getContext());
-    axisInfo.run(op);
+    std::unique_ptr<DataFlowSolver> solver = createDataFlowSolver();
+    AxisInfoAnalysis *axisInfo = solver->load<AxisInfoAnalysis>();
+    if (failed(solver->initializeAndRun(op)))
+      return signalPassFailure();
     OpBuilder builder(op);
 
     // For each memory op that has a layout L1:
@@ -120,16 +125,16 @@ struct CoalescePass : public TritonGPUCoalesceBase<CoalescePass> {
       OpBuilder::InsertionGuard g(builder);
       builder.setInsertionPoint(curr);
       if (auto load = dyn_cast<triton::LoadOp>(curr))
-        coalesceOp<triton::LoadOp>(axisInfo, curr, load.ptr(), builder);
+        coalesceOp<triton::LoadOp>(*axisInfo, curr, load.ptr(), builder);
       if (auto op = dyn_cast<triton::AtomicRMWOp>(curr))
-        coalesceOp<triton::AtomicRMWOp>(axisInfo, curr, op.ptr(), builder);
+        coalesceOp<triton::AtomicRMWOp>(*axisInfo, curr, op.ptr(), builder);
       if (auto op = dyn_cast<triton::AtomicCASOp>(curr))
-        coalesceOp<triton::AtomicCASOp>(axisInfo, curr, op.ptr(), builder);
+        coalesceOp<triton::AtomicCASOp>(*axisInfo, curr, op.ptr(), builder);
       if (auto load = dyn_cast<triton::gpu::InsertSliceAsyncOp>(curr))
-        coalesceOp<triton::gpu::InsertSliceAsyncOp>(axisInfo, curr, load.src(),
+        coalesceOp<triton::gpu::InsertSliceAsyncOp>(*axisInfo, curr, load.src(),
                                                     builder);
       if (auto store = dyn_cast<triton::StoreOp>(curr))
-        coalesceOp<triton::StoreOp>(axisInfo, curr, store.ptr(), builder);
+        coalesceOp<triton::StoreOp>(*axisInfo, curr, store.ptr(), builder);
     });
   }
 };
