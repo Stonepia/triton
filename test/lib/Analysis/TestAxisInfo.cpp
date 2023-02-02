@@ -20,7 +20,7 @@ struct TestAxisInfoPass
     Operation *operation = getOperation();
     auto &os = llvm::errs();
     auto opName = SymbolTable::getSymbolName(operation).getValue().str();
-    os << opName << "\n";
+    os << "@" << opName << "\n";
 
     std::unique_ptr<DataFlowSolver> solver = createDataFlowSolver();
     AxisInfoAnalysis *analysis = solver->load<AxisInfoAnalysis>();

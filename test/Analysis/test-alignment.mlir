@@ -1,6 +1,6 @@
 // RUN: triton-opt %s -test-print-alignment -split-input-file -o %t 2>&1 | FileCheck %s
 
-// CHECK-LABEL: cast
+// CHECK-LABEL: @cast
 func.func @cast() {
   // CHECK: contiguity = [1], divisibility = [1], constancy = [1], constant_value = 1
   %cst = arith.constant 1 : i32
@@ -15,7 +15,7 @@ func.func @cast() {
 
 // -----
 
-// CHECK-LABEL: add
+// CHECK-LABEL: @add
 func.func @add() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -32,7 +32,7 @@ func.func @add() {
 
 // -----
 
-// CHECK-LABEL: sub
+// CHECK-LABEL: @sub
 func.func @sub() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -49,7 +49,7 @@ func.func @sub() {
 
 // -----
 
-// CHECK-LABEL: mul
+// CHECK-LABEL: @mul
 func.func @mul() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -70,7 +70,7 @@ func.func @mul() {
 
 // -----
 
-// CHECK-LABEL: div
+// CHECK-LABEL: @div
 func.func @div() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -95,7 +95,7 @@ func.func @div() {
 
 // -----
 
-// CHECK-LABEL: rem
+// CHECK-LABEL: @rem
 func.func @rem() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -120,7 +120,7 @@ func.func @rem() {
 
 // -----
 
-// CHECK-LABEL: broadcast
+// CHECK-LABEL: @broadcast
 func.func @broadcast() {
   // CHECK: contiguity = [1], divisibility = [64], constancy = [128], constant_value = 64
   %0 = arith.constant dense<64> : tensor<128xi32>
@@ -133,7 +133,7 @@ func.func @broadcast() {
 
 // -----
 
-// CHECK-LABEL: splat
+// CHECK-LABEL: @splat
 func.func @splat(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}) {
   // CHECK: contiguity = [1, 1], divisibility = [16, 16], constancy = [128, 128], constant_value = <none>
   %0 = tt.splat %arg0 : (!tt.ptr<f32>) -> tensor<128x128x!tt.ptr<f32>>
@@ -142,7 +142,7 @@ func.func @splat(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}) {
 
 // -----
 
-// CHECK-LABEL: cmp
+// CHECK-LABEL: @cmp
 func.func @cmp() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -167,7 +167,7 @@ func.func @cmp() {
 
 // -----
 
-// CHECK-LABEL: logic
+// CHECK-LABEL: @logic
 func.func @logic() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -196,7 +196,7 @@ func.func @logic() {
 
 // -----
 
-// CHECK-LABEL: select
+// CHECK-LABEL: @select
 func.func @select() {
   // CHECK: contiguity = [128], divisibility = [1073741824], constancy = [1], constant_value = <none>
   %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
@@ -257,7 +257,7 @@ func.func @max_min() {
 
 // -----
 
-// CHECK-LABEL: for
+// CHECK-LABEL: @for
 func.func @for() {
   // CHECK: contiguity = [1, 1], divisibility = [4611686018427387904, 4611686018427387904], constancy = [128, 32], constant_value = 0
   %a_init = arith.constant dense<0> : tensor<128x32xi32>
@@ -284,9 +284,9 @@ func.func @for() {
 
 // -----
 
-// CHECK-LABEL: permute_2d
+// CHECK-LABEL: @permute_2d
 func.func @permute_2d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i32 {tt.divisibility = 16 : i32}, %arg2: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32}) {
-  // CHECK: contiguity = [1, 1], divisibility = [1, 1], constancy = [1, 1], constant_value = <none>
+  // CHECK: contiguity = [1, 1], divisibility = [1, 1], constancy = [128, 128], constant_value = 1
   %cst = arith.constant dense<true> : tensor<128x128xi1>
   // CHECK-NEXT: contiguity = [1, 1], divisibility = [1, 1], constancy = [1, 1], constant_value = <none>
   %cst_0 = arith.constant dense<0.000000e+00> : tensor<128x128xf32>
@@ -341,7 +341,7 @@ func.func @permute_2d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i
 module {
 
 // This is a tiny test for verifying StoreOp-related alignment, It simply store a constant to a buffer.
-// CHECK-LABEL: store_constant_align
+// CHECK-LABEL: @store_constant_align
 func.func @store_constant_align(%addr: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %n: i32 {tt.divisibility = 16 : i32}) {
   // CHECK: contiguity = [1], divisibility = [1], constancy = [1], constant_value = <none>
   %pid = tt.get_program_id {axis = 0 : i32} : i32
@@ -375,7 +375,7 @@ func.func @store_constant_align(%addr: !tt.ptr<f32> {tt.divisibility = 16 : i32}
 
 // This IR is dumped from vecadd test.
 // Note, the hint {tt.divisibility = 16 : i32} for %n_elements affects the alignment of mask.
-// CHECK-LABEL: vecadd_mask_align_16
+// CHECK-LABEL: @vecadd_mask_align_16
 func.func @vecadd_mask_align_16(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %n_elements: i32 {tt.divisibility = 16 : i32}) {
   %c64_i32 = arith.constant 64 : i32
   %0 = tt.get_program_id {axis = 0 : i32} : i32
@@ -388,7 +388,7 @@ func.func @vecadd_mask_align_16(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}
   %7 = tt.splat %arg1 : (!tt.ptr<f32>) -> tensor<64x!tt.ptr<f32>>
   %8 = tt.addptr %7, %4 : tensor<64x!tt.ptr<f32>>, tensor<64xi32>
   %9 = tt.splat %n_elements : (i32) -> tensor<64xi32>
-  // CHECK: arith.cmpi slt, %{{.*}} => contiguity = [1], divisibility = [64], constancy = [16], constant_value = <none>
+  // CHECK: arith.cmpi slt, %{{.*}} => contiguity = [1], divisibility = [1], constancy = [16], constant_value = <none>
   %mask = arith.cmpi slt, %4, %9 : tensor<64xi32>
   %11 = tt.load %6, %mask {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<64xf32>
   %12 = tt.load %8, %mask {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<64xf32>
@@ -404,7 +404,7 @@ func.func @vecadd_mask_align_16(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}
 
 // This IR is dumped from vecadd test.
 // Note, there is no divisibility hint for %n_elements, Triton should assume its divisibility to be 1 by default.
-// CHECK-LABEL: vecadd_mask_align_1
+// CHECK-LABEL: @vecadd_mask_align_1
 func.func @vecadd_mask_align_1(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %n_elements: i32) {
   %c64_i32 = arith.constant 64 : i32
   %0 = tt.get_program_id {axis = 0 : i32} : i32
@@ -417,7 +417,7 @@ func.func @vecadd_mask_align_1(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32},
   %7 = tt.splat %arg1 : (!tt.ptr<f32>) -> tensor<64x!tt.ptr<f32>>
   %8 = tt.addptr %7, %4 : tensor<64x!tt.ptr<f32>>, tensor<64xi32>
   %9 = tt.splat %n_elements : (i32) -> tensor<64xi32>
-  // CHECK: arith.cmpi slt, %{{.*}} => contiguity = [1], divisibility = [64], constancy = [1], constant_value = <none>
+  // CHECK: arith.cmpi slt, %{{.*}} => contiguity = [1], divisibility = [1], constancy = [1], constant_value = <none>
   %10 = arith.cmpi slt, %4, %9 : tensor<64xi32>
   %11 = tt.load %6, %10 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<64xf32>
   %12 = tt.load %8, %10 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<64xf32>
